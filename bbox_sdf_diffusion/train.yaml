@@ -1,0 +1,81 @@
+data_params:
+  train_batch_size: 32
+  num_workers: 16
+  data_size: -1
+  pkl_path: 'data2/deepcad_solid_deduplicated_id.pkl'
+  filter_data_path: null
+  max_data_faces: 40
+  face_shuffle: True
+
+model_params:
+  class_type: 'Solid3DModel'
+  in_channels: 4
+  out_channels: 4
+  solid_params:
+    encode_params:
+      types: ["EncodeDownBlock3D", "EncodeDownBlock3D", "EncodeBlock3D"]
+      attns: [False, False, False]
+    mid_params:
+      types: ["EncodeBlock3D"]
+      attns: [False]
+    decode_params:
+      types: ["DecodeBlock3D", "DecodeUpBlock3D", "DecodeUpBlock3D"]
+      attns: [False, False, False]
+  face_params:
+    encode_params:
+      types: ["EncodeDownBlock3D", "EncodeDownBlock3D", "EncodeBlock3D"]
+      attns: [False, False, False]
+    mid_params:
+      types: ["EncodeBlock3D"]
+      attns: [False]
+    decode_params:
+      types: ["DecodeBlock3D", "DecodeUpBlock3D", "DecodeUpBlock3D"]
+      attns: [False, False, False]
+  block_channels: [128, 256, 512,    512,   256, 128, 128]
+  layers_per_block: 2
+  attention_head_dim: 8
+  norm_num_groups: 32
+  norm_eps: 1.e-5
+  freq_shift: 0
+  flip_sin_to_cos: True
+  act_fn: 'silu'
+  bbox_embed_dim: 256
+  time_embed_dim: 256
+
+trainer_params:
+  manual_seed: 1234
+  accelerator: 'gpu'
+  max_epochs: 5000
+  precision: 32
+  num_nodes: 1
+  devices: 2
+  strategy: 'ddp'
+  log_every_n_steps: 100
+  limit_val_batches: 1
+  val_check_interval: 3000
+  num_sanity_val_steps: 1
+  detect_anomaly: False
+  accumulate_grad_batches: 1
+  gradient_clip_val: 1.0
+  default_root_dir: 'bbox_sdf_diffusion/logs/full'
+
+exp_params:
+  guidance_scale: 1.0
+  render_type: 'face_solid'
+  prediction_type: 'sample' # epsilon or sample
+  lr: 0.0001
+  freeze_modules: [] #['face_model', 'solid_model']
+  weight_decay: 0.0
+  lr_decay: 0.99
+  loss_type: "l2" # l1 or l2
+  diffusion_steps: 100
+  visual_type: 'vanilla' # brep or vanilla 
+  face_model:
+    config: 'vqvae/logs/vqvae_face_npz_reso_4/lightning_logs/version_0/config.yaml'
+    pretrained_path: 'vqvae/logs/vqvae_face_npz_reso_4/lightning_logs/version_0/checkpoints/last-model-epoch=93.ckpt'
+  sdf_model: 
+    config: 'vqvae/logs/vqvae_solid_npz_reso_4/lightning_logs/version_0/config.yaml'
+    pretrained_path: 'vqvae/logs/vqvae_solid_npz_reso_4/lightning_logs/version_0/checkpoints/last-model-epoch=93.ckpt'
+  latent_std_mean_path: 'vqvae/logs/recon/train_npz_reso_4/lightning_logs/version_2/mean_std.pkl'
+  pretrained_model_path: 'bbox_sdf_diffusion/logs/debug_5000/lightning_logs/version_0/checkpoints/last-model-epoch=01.ckpt'
+

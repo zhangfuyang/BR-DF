@@ -1,0 +1,54 @@
+data_params:
+  train:
+    data_path: 'data_list_path_train.txt' #'train_valid_data_list.pkl'
+    data_key: 'face_bounded_distance_field'
+    filter_data_path: null #'Data/processed/deepcad_subset/train_bad_list.pkl'
+    clip_value: 0.1
+    scale_factor: 10
+    data_format: 'npz' # 'pkl'
+  val:
+    data_path: 'data_list_path_train.txt' #'train_valid_data_list.pkl'
+    data_key: 'face_bounded_distance_field'
+    filter_data_path: null #'Data/processed/deepcad_subset/val_bad_list.pkl'
+    clip_value: 0.1
+    scale_factor: 10
+    data_format: 'npz' # 'pkl'
+  batch_size: 16
+  num_workers: 32
+
+model_params:
+  n_channels: 1
+  with_conv: True
+  num_res_blocks: 3
+  channels: [1,2,4,4,8] # downsample 4 times, 64 -> 32 -> 16 -> 8 -> 4
+  voxel_size: 64
+  ch: 32
+  codebook_dim: 4
+  codebook_size: 8192
+
+trainer_params:
+  manual_seed: 44
+  accelerator: 'gpu'
+  max_epochs: 200
+  precision: 32
+  num_nodes: 1
+  devices: 1
+  strategy: 'ddp'
+  log_every_n_steps: 50
+  limit_val_batches: 1
+  val_check_interval: 1.
+  num_sanity_val_steps: 1
+  detect_anomaly: False
+  default_root_dir: 'vqvae/logs/vqvae_face_npz_reso_4'
+
+exp_params:
+  lr: 0.0001
+  weight_decay: 0.0
+  lr_decay: 0.95
+  vq_weight: 0.25
+  recon_loss_type: "l2" # l1 or l2
+  pretrained_model_path: 'vqvae/logs/vqvae_face_npz_reso_4/lightning_logs/version_0/checkpoints/last-model-epoch=26.ckpt'
+  phase: "face" # sdf or face
+  adaptive_training: False
+
+  
