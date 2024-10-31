@@ -19,10 +19,10 @@ from bbox.network import BBoxNet
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--bbox_config', type=str, default='bbox/logs/full/lightning_logs/version_0/config.yaml')
-parser.add_argument('--bbox_checkpoint', type=str, default='bbox/logs/full/lightning_logs/version_0/checkpoints/last.ckpt')
-parser.add_argument('--face_solid_config', type=str, default='bbox_sdf_diffusion/logs/full/lightning_logs/version_0/config.yaml')
-parser.add_argument('--face_solid_checkpoint', type=str, default='bbox_sdf_diffusion/logs/full/lightning_logs/version_0/checkpoints/last.ckpt')
+parser.add_argument('--bbox_config', type=str, default='checkpoints/bbox_config.yaml')
+parser.add_argument('--bbox_checkpoint', type=str, default='checkpoints/bbox_last.ckpt')
+parser.add_argument('--face_solid_config', type=str, default='checkpoints/bbox_sdf_diffusion_config.yaml')
+parser.add_argument('--face_solid_checkpoint', type=str, default='checkpoints/bbox_sdf_diffusion_last.ckpt')
 parser.add_argument('--output_dir', type=str, default='bbox_sdf_diffusion/output')
 args = parser.parse_args()
 
