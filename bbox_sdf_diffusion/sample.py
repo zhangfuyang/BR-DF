@@ -19,11 +19,11 @@ from bbox.network import BBoxNet
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--bbox_config', type=str, default='checkpoints/bbox_config.yaml')
-parser.add_argument('--bbox_checkpoint', type=str, default='checkpoints/bbox_last.ckpt')
-parser.add_argument('--face_solid_config', type=str, default='checkpoints/bbox_sdf_diffusion_config.yaml')
-parser.add_argument('--face_solid_checkpoint', type=str, default='checkpoints/bbox_sdf_diffusion_last.ckpt')
-parser.add_argument('--output_dir', type=str, default='bbox_sdf_diffusion/output')
+parser.add_argument('--bbox_config', type=str, default='checkpoints/deepcad/bbox_config.yaml')
+parser.add_argument('--bbox_checkpoint', type=str, default='checkpoints/deepcad/bbox_last.ckpt')
+parser.add_argument('--face_solid_config', type=str, default='checkpoints/deepcad/bbox_sdf_diffusion_config.yaml')
+parser.add_argument('--face_solid_checkpoint', type=str, default='checkpoints/deepcad/bbox_sdf_diffusion_last.ckpt')
+parser.add_argument('--output_dir', type=str, default='bbox_sdf_diffusion/output_deepcad')
 args = parser.parse_args()
 
 batch_size = 16

@@ -2,24 +2,20 @@ import glob
 import torch
 import pickle
 import numpy as np
-import OpenEXR
-import Imath
-import array
 import os
 
 class LatentDataset(torch.utils.data.Dataset):
     def __init__(self, data_config):
         self.data_config = data_config
-        data_path = data_config['pkl_path']
-        self.data_list = pickle.load(open(data_path, 'rb'))['train']
+        data_path = data_config['data_path']
+        if data_path.endswith('.pkl'):
+            self.data_list = pickle.load(open(data_path, 'rb'))['train']
+        else:
+            self.data_list = glob.glob(os.path.join(data_path, '*.pkl'))
         self.data_list = sorted(self.data_list)
 
         if data_config['data_size'] > 0:
             self.data_list = self.data_list[:data_config['data_size']]
-        temp_list = []
-        for data in self.data_list:
-            temp_list.append(data.replace('data', 'data2').replace('solid', 'solid_new'))
-        self.data_list = temp_list
     
     def __len__(self):
         if len(self.data_list) < 10000:
@@ -28,13 +24,11 @@ class LatentDataset(torch.utils.data.Dataset):
     
     def __getitem__(self, idx):
         idx = idx % len(self.data_list)
-        npz_path = self.data_list[idx]
+        data_path = self.data_list[idx]
         try:
-            solid_id = npz_path.split('/')[-2]
-            pkl_root = 'vqvae/logs/recon/data2/deepcad/lightning_logs/version_0/pkl'
-            pkl_path = os.path.join(pkl_root, solid_id + '_solid_new_0_identity.pkl')
+            pkl_path = data_path
             if not os.path.exists(pkl_path):
-                print('????')
+                raise Exception('Not found')
             with open(pkl_path, 'rb') as f:
                 data = pickle.load(f)
         except:

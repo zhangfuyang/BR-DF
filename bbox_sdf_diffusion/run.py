@@ -81,9 +81,14 @@ model = ModelClass(config['model_params'])
 experiment = DiffusionExperiment(config['exp_params'], model, face_model, sdf_model)
 # load pretrained model
 if config['exp_params']['pretrained_model_path'] is not None:
-    experiment.load_state_dict(
-        torch.load(config['exp_params']['pretrained_model_path'], 
-                   map_location='cpu')['state_dict'], strict=False)
+    state_dict = torch.load(config['exp_params']['pretrained_model_path'],
+                            map_location='cpu')['state_dict']
+    new_state_dict = {}
+    for k, v in state_dict.items():
+        if k.startswith('face_model.') or k.startswith('sdf_model.'):
+            continue
+        new_state_dict[k] = v
+    experiment.load_state_dict(new_state_dict, strict=False)
 
 DataClass = LatentDataset
 train_dataset = DataClass(config['data_params'])

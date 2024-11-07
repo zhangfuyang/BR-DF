@@ -533,7 +533,7 @@ def brep_process(v_sdf, f_bdf, save_base):
     mesh.export(f'{save_base}/mc_mesh_ori.obj')
     mesh.export(f'{save_base}/mc_mesh_ori.glb')
 
-    vertices, triangles = trimesh.remesh.subdivide_loop(vertices, triangles.astype(int), 1)
+    vertices, triangles = trimesh.remesh.subdivide_loop(vertices, triangles.astype(int), 2)
     mesh = trimesh.Trimesh(vertices=vertices, faces=triangles, process=False)
 
     mesh.export(f'{save_base}/mc_mesh_sub.obj')
@@ -542,14 +542,12 @@ def brep_process(v_sdf, f_bdf, save_base):
     solid_pc = trimesh.points.PointCloud(vertices)
     solid_pc.export(f'{save_base}/mc_vertice.obj', include_color=True)
 
-    all_intersection_points = []
-
     grid_reso = f_bdf.shape[0]
 
     filter_v = {} # used for filter the vertices that are not in the mesh. k -> face_id, v -> v_id
     assign_v = {} # used for assign the vertices to the face. k -> v_id, v -> face_id
     compute_number = 0
-    while compute_number < 60:
+    while compute_number < 15:
         compute_number += 1
         f_dbf_interpolator = RegularGridInterpolator(
             (np.arange(grid_reso), np.arange(grid_reso), np.arange(grid_reso)), f_bdf, 
@@ -564,9 +562,9 @@ def brep_process(v_sdf, f_bdf, save_base):
         vertices_face_id = interpolated_f_bdf.argmin(-1)
         triangle_face_id = vertices_face_id[triangles] # M, 3
 
-        mesh = trimesh.Trimesh(vertices=vertices, faces=triangles, process=False)
-        mesh.visual.vertex_colors = base_color[vertices_face_id % len(base_color)]
-        mesh.export(f'{save_base}/{compute_number}.obj', include_color=True)
+        #mesh = trimesh.Trimesh(vertices=vertices, faces=triangles, process=False)
+        #mesh.visual.vertex_colors = base_color[vertices_face_id % len(base_color)]
+        #mesh.export(f'{save_base}/{compute_number}.obj', include_color=True)
 
         # if there is vertices that doesn't belong to any face, set it to one of the neighbor
         # TODO
@@ -700,6 +698,30 @@ def brep_process(v_sdf, f_bdf, save_base):
                 one_point = group_b
 
             # get the intersection points & find two triangles of the intersection points
+            # interpolate the intersection points
+            
+        #    one_point_dists = interpolated_f_bdf[one_point[0]][ids]
+        #    two_points_dists = interpolated_f_bdf[two_points][:, ids] # 2, 2
+
+        #    # find the intersection between two lines
+        #    # point1:
+        #    loc_a = vertices[one_point[0]]
+        #    loc_b = vertices[two_points[0]]
+        #    value_a = one_point_dists
+        #    value_b = two_points_dists[0]
+        #    t = (value_a[1]-value_a[0]) / ((value_b[0] - value_a[0]) - (value_b[1] - value_a[1]))
+        #    assert t >= 0 and t <= 1
+        #    point1 = loc_a + t * (loc_b - loc_a)
+
+        #    # point2:
+        #    loc_a = vertices[one_point[0]]
+        #    loc_b = vertices[two_points[1]]
+        #    value_a = one_point_dists
+        #    value_b = two_points_dists[1]
+        #    t = (value_a[1]-value_a[0]) / ((value_b[0] - value_a[0]) - (value_b[1] - value_a[1]))
+        #    assert t >= 0 and t <= 1
+        #    point2 = loc_a + t * (loc_b - loc_a)
+
             point1 = (vertices[two_points[0]] + vertices[one_point[0]]) / 2
             point2 = (vertices[two_points[1]] + vertices[one_point[0]]) / 2
 
@@ -756,13 +778,29 @@ def brep_process(v_sdf, f_bdf, save_base):
     for k, v in boundary_dict.items():
         v.visualize_vertices(f'{save_base}/boundary_{k[0]}_{k[1]}', split_into_groups=True)
 
-    for face_i in range(f_bdf.shape[-1]):
-        face = f_bdf[..., face_i]
-        points = np.where(face < 0.03)
-        points = np.array(points).T
-        pointcloud = trimesh.points.PointCloud(points)
-        # save
-        filename = f'{save_base}/face_only_{face_i}.obj'
-        pointcloud.export(filename)
+    # fusion format
+    faces_group = []
+    faces_group2 = [[] for _ in range(f_bdf.shape[-1])] # intersection points
+    for tri_idx, tri in enumerate(triangles):
+        three_vertice_id = vertices_face_id[tri]
+        if len(np.unique(three_vertice_id)) == 3:
+            faces_group2[three_vertice_id[0]].append(tri_idx)
+    for face_idx in range(f_bdf.shape[-1]):
+        triangle_belong_face = (triangle_face_id == face_idx).sum(1) >= 2
+        triangle_idx = np.arange(len(triangles))[triangle_belong_face]
+        faces_group.append(triangle_idx)
+        
+    # write the fusion format
+    with open(f'{save_base}/mesh_group.obj', 'w') as f:
+        for v_idx, v in enumerate(vertices):
+            f.write(f'v {v[0]} {v[1]} {v[2]}\n')
+        for face_idx, group in enumerate(faces_group):
+            f.write(f'g group_{face_idx}\n')
+            for tri_idx in group:
+                tri = triangles[tri_idx]
+                f.write(f'f {tri[0]+1} {tri[1]+1} {tri[2]+1}\n')
+            for tri_idx in faces_group2[face_idx]:
+                tri = triangles[tri_idx]
+                f.write(f'f {tri[0]+1} {tri[1]+1} {tri[2]+1}\n')
 
 

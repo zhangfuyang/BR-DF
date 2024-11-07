@@ -7,15 +7,14 @@ import numpy as np
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, config):
         self.config = config
-        pkl_path = self.config['pkl_path']
-        self.data_id_list = pickle.load(open(pkl_path, 'rb'))['train']
+        data_path = self.config['data_path']
+        if data_path.endswith('.pkl'):
+            self.data_id_list = pickle.load(open(data_path, 'rb'))['train']
+        else:
+            self.data_id_list = glob.glob(os.path.join(data_path, '*', '*.npz'))
         self.data_id_list = sorted(self.data_id_list)
         if self.config['data_size'] > 0:
             self.data_id_list = self.data_id_list[:self.config['data_size']]
-        temp_list = []
-        for data in self.data_id_list:
-            temp_list.append(data.replace('data', 'data2').replace('solid', 'solid_new'))
-        self.data_id_list = temp_list
     
     def __len__(self):
         if len(self.data_id_list) < 200000:

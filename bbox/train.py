@@ -153,6 +153,10 @@ if __name__ == "__main__":
     network = BBoxNet(config['network_params'])
 
     experiment = Trainer(config['trainer_params'], network)
+    if config['trainer_params']['pretrained_model_path'] is not None:
+        experiment.load_state_dict(
+            torch.load(config['trainer_params']['pretrained_model_path'], 
+                       map_location='cpu')['state_dict'], strict=True)
 
     dataset = Dataset(config['data_params'])
     dataloader = torch.utils.data.DataLoader(
