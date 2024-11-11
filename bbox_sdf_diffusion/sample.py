@@ -24,6 +24,7 @@ parser.add_argument('--bbox_checkpoint', type=str, default='checkpoints/deepcad/
 parser.add_argument('--face_solid_config', type=str, default='checkpoints/deepcad/bbox_sdf_diffusion_config.yaml')
 parser.add_argument('--face_solid_checkpoint', type=str, default='checkpoints/deepcad/bbox_sdf_diffusion_last.ckpt')
 parser.add_argument('--output_dir', type=str, default='bbox_sdf_diffusion/output_deepcad')
+parser.add_argument('--fast_sample', action='store_true', default=False)
 args = parser.parse_args()
 
 batch_size = 16
@@ -263,7 +264,7 @@ for i in range(batch_size):
     ##### process #####
     save_root = os.path.join(args.output_dir, f'{i:03d}', 'process')
     os.makedirs(save_root, exist_ok=True)
-    brep_process(solid_voxel_i, face_voxel_i.transpose(1,2,3,0), save_root)
+    brep_process(solid_voxel_i, face_voxel_i.transpose(1,2,3,0), save_root, fast_sample=True)
 
 
     

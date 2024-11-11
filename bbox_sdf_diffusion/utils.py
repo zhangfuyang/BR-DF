@@ -516,7 +516,15 @@ def clean_bdf(f_bdf, threshold=0.08):
             valid_idx.append(i)
     return f_bdf[..., valid_idx]
 
-def brep_process(v_sdf, f_bdf, save_base):
+def add_vertice_return_idx(vertices, new_vertice):
+    dist = np.linalg.norm(vertices - new_vertice, axis=1)
+    if np.min(dist) > 1e-6:
+        vertices = np.vstack([vertices, new_vertice])
+        return vertices, len(vertices) - 1
+    else:
+        return vertices, np.argmin(dist)
+
+def brep_process(v_sdf, f_bdf, save_base, fast_sample=False):
     # v_sdf: nxnxn
     # f_bdf: nxnxnxm
 
@@ -533,7 +541,10 @@ def brep_process(v_sdf, f_bdf, save_base):
     mesh.export(f'{save_base}/mc_mesh_ori.obj')
     mesh.export(f'{save_base}/mc_mesh_ori.glb')
 
-    vertices, triangles = trimesh.remesh.subdivide_loop(vertices, triangles.astype(int), 2)
+    if fast_sample:
+        return
+
+    vertices, triangles = trimesh.remesh.subdivide_loop(vertices, triangles.astype(int), 1)
     mesh = trimesh.Trimesh(vertices=vertices, faces=triangles, process=False)
 
     mesh.export(f'{save_base}/mc_mesh_sub.obj')
@@ -655,34 +666,19 @@ def brep_process(v_sdf, f_bdf, save_base):
         if not re_compute:
             break
     
+    if compute_number == 15:
+        print('Cannot find the solution')
+        return
     mesh = trimesh.Trimesh(vertices=vertices, faces=triangles, process=False)
     mesh.visual.vertex_colors = base_color[vertices_face_id % len(base_color)]
     mesh.export(f'{save_base}/mc_mesh_color.obj', include_color=True)
     mesh.export(f'{save_base}/mc_mesh_color.glb')
 
     brep = Brep()
-    for face_idx in range(f_bdf.shape[-1]):
-        triangle_belong_face = (triangle_face_id == face_idx).all(1)
-        if np.sum(triangle_belong_face) == 0:
-            continue
-        # get valid triangle idx [True, False, True, True] -> [0, 2, 3]
-        triangle_idx = np.arange(len(triangles))[triangle_belong_face]
-        face_mesh = mesh.submesh([triangle_idx], append=True)
-        components = face_mesh.split(only_watertight=False)
-        #if len(components) > 1:
-        #    print(f'WARNING: face {face_idx} has {len(components)} components')
-        face = Face(face_idx, face_mesh)
-        brep.add_face(face)
-        face.mesh.export(f'{save_base}/face_{face_idx}.obj', include_color=True)
-
-    faces = brep.faces
-    all_face = None
-    for face_idx, face in enumerate(faces):
-        all_face = face.mesh if all_face is None else all_face + face.mesh
-    all_face.export(f'{save_base}/face_all.obj', include_color=True)
 
     # find the boundary
     boundary_dict = {}
+    new_triangles = {'2': [], '3': []}
     for tri_idx, tri in enumerate(triangles):
         three_vertice_id = vertices_face_id[tri]
         if len(np.unique(three_vertice_id)) == 1:
@@ -725,6 +721,16 @@ def brep_process(v_sdf, f_bdf, save_base):
             point1 = (vertices[two_points[0]] + vertices[one_point[0]]) / 2
             point2 = (vertices[two_points[1]] + vertices[one_point[0]]) / 2
 
+            # we need to label the case here, and make a new triangle later
+            new_triangles['2'].append(
+                {
+                    'old_tri': tri_idx,
+                    'one_point': one_point[0],
+                    'two_points': two_points,
+                    'new_points': [point1, point2]
+                }
+            )
+
             ids = np.sort(ids)
             if (ids[0], ids[1]) not in boundary_dict:
                 boundary_dict[(ids[0], ids[1])] = Boundary()
@@ -736,6 +742,20 @@ def brep_process(v_sdf, f_bdf, save_base):
             boundary.add_connection([idx1, idx2])
         else:
             center_point = np.mean(vertices[tri], axis=0)
+            point1 = (vertices[tri[0]] + vertices[tri[1]]) / 2
+            point2 = (vertices[tri[1]] + vertices[tri[2]]) / 2
+            point3 = (vertices[tri[0]] + vertices[tri[2]]) / 2
+
+            # we need to label the case here, and make a new triangle later
+            new_triangles['3'].append(
+                {
+                    'old_tri': tri_idx,
+                    'center_point': center_point,
+                    'points': tri,
+                    'new_points': [point1, point2, point3]
+                }
+            )
+
             for i in range(3):
                 two_ids = three_vertice_id[[i, (i+1)%3]]
                 point = (vertices[tri[i]] + vertices[tri[(i+1)%3]]) / 2
@@ -749,6 +769,87 @@ def brep_process(v_sdf, f_bdf, save_base):
                 idx1 = boundary.add_vertex(center_point, v_type=1)
                 idx2 = boundary.add_vertex(point)
                 boundary.add_connection([idx1, idx2])
+    
+    # add new triangles
+    for tri in new_triangles['2']:
+        tri_id = tri['old_tri']
+        order = triangles[tri_id]
+        one_point = tri['one_point']
+        two_points = tri['two_points']
+        new_points = tri['new_points']
+        vertices, new_idx1 = add_vertice_return_idx(vertices, new_points[0])
+        vertices, new_idx2 = add_vertice_return_idx(vertices, new_points[1])
+
+        next = (np.where(order == one_point)[0] + 1) % 3
+        next_point = order[next]
+        if next_point == two_points[0]:
+            order = 1
+        else:
+            order = 2
+        # add new triangle
+        if order == 1:
+            new_tri = np.array([one_point, new_idx1, new_idx2])
+            triangles = np.vstack([triangles, new_tri])
+            new_tri = np.array([two_points[0], new_idx2, new_idx1])
+            triangles = np.vstack([triangles, new_tri])
+            new_tri = np.array([two_points[0], two_points[1], new_idx2])
+            triangles = np.vstack([triangles, new_tri])
+        else:
+            new_tri = np.array([one_point, new_idx2, new_idx1])
+            triangles = np.vstack([triangles, new_tri])
+            new_tri = np.array([two_points[0], new_idx1, new_idx2])
+            triangles = np.vstack([triangles, new_tri])
+            new_tri = np.array([two_points[0], new_idx2, two_points[1]])
+            triangles = np.vstack([triangles, new_tri])
+    
+    for tri in new_triangles['3']:
+        center_point = tri['center_point']
+        new_points = tri['new_points']
+        points = tri['points']
+        vertices, new_idx1 = add_vertice_return_idx(vertices, new_points[0])
+        vertices, new_idx2 = add_vertice_return_idx(vertices, new_points[1])
+        vertices, new_idx3 = add_vertice_return_idx(vertices, new_points[2])
+        vertices, center_idx = add_vertice_return_idx(vertices, center_point)
+
+        # add new triangle
+        new_tri = np.array([center_idx, points[0], new_idx1])
+        triangles = np.vstack([triangles, new_tri])
+        new_tri = np.array([center_idx, new_idx3, points[0]])
+        triangles = np.vstack([triangles, new_tri])
+        new_tri = np.array([center_idx, new_idx1, points[1]])
+        triangles = np.vstack([triangles, new_tri])
+        new_tri = np.array([center_idx, points[1], new_idx2])
+        triangles = np.vstack([triangles, new_tri])
+        new_tri = np.array([center_idx, new_idx2, points[2]])
+        triangles = np.vstack([triangles, new_tri])
+        new_tri = np.array([center_idx, points[2], new_idx3])
+        triangles = np.vstack([triangles, new_tri])
+    
+    # delete the old triangles
+    delted_tri_id1 = [tri['old_tri'] for tri in new_triangles['2']]
+    delted_tri_id2 = [tri['old_tri'] for tri in new_triangles['3']]
+    delted_tri_id = delted_tri_id1 + delted_tri_id2
+    delted_tri_id = sorted(delted_tri_id, reverse=True)
+    for tri_id in delted_tri_id:
+        triangles = np.delete(triangles, tri_id, axis=0)
+    
+    # pad new vertices face id with -1
+    vertices_face_id = np.pad(vertices_face_id, (0, len(vertices) - vertices_face_id.shape[0]), 'constant', constant_values=-1)
+    triangle_face_id = vertices_face_id[triangles]
+    mesh = trimesh.Trimesh(vertices=vertices, faces=triangles, process=False)
+
+    for face_idx in range(f_bdf.shape[-1]):
+        triangle_belong_face = (triangle_face_id == face_idx).any(1)
+        if np.sum(triangle_belong_face) == 0:
+            continue
+        # get valid triangle idx [True, False, True, True] -> [0, 2, 3]
+        triangle_idx = np.arange(len(triangles))[triangle_belong_face]
+        face_mesh = mesh.submesh([triangle_idx], append=True)
+        components = face_mesh.split(only_watertight=False)
+        #if len(components) > 1:
+        #    print(f'WARNING: face {face_idx} has {len(components)} components')
+        face = Face(face_idx, face_mesh)
+        brep.add_face(face)
 
     # add boundary to each face and brep
     faces = {}
@@ -774,10 +875,17 @@ def brep_process(v_sdf, f_bdf, save_base):
     with open(f'{save_base}/brep.pkl', 'wb') as f:
         pickle.dump(brep_data, f)
 
+    faces = brep.faces
+    all_face = None
+    for face_idx, face in enumerate(faces):
+        all_face = face.mesh if all_face is None else all_face + face.mesh
+        face.mesh.export(f'{save_base}/face_{face_idx}.obj', include_color=True)
+    all_face.export(f'{save_base}/face_all.obj', include_color=True)
+
     # export the boundary vertices
     for k, v in boundary_dict.items():
         v.visualize_vertices(f'{save_base}/boundary_{k[0]}_{k[1]}', split_into_groups=True)
-
+    
     # fusion format
     faces_group = []
     faces_group2 = [[] for _ in range(f_bdf.shape[-1])] # intersection points
@@ -785,8 +893,9 @@ def brep_process(v_sdf, f_bdf, save_base):
         three_vertice_id = vertices_face_id[tri]
         if len(np.unique(three_vertice_id)) == 3:
             faces_group2[three_vertice_id[0]].append(tri_idx)
+            raise ValueError('Should not have 3 vertices')
     for face_idx in range(f_bdf.shape[-1]):
-        triangle_belong_face = (triangle_face_id == face_idx).sum(1) >= 2
+        triangle_belong_face = (triangle_face_id == face_idx).any(1)
         triangle_idx = np.arange(len(triangles))[triangle_belong_face]
         faces_group.append(triangle_idx)
         
@@ -802,5 +911,8 @@ def brep_process(v_sdf, f_bdf, save_base):
             for tri_idx in faces_group2[face_idx]:
                 tri = triangles[tri_idx]
                 f.write(f'f {tri[0]+1} {tri[1]+1} {tri[2]+1}\n')
+    
+    # save the vertices face id
+    np.save(f'{save_base}/vertices_face_id.npy', vertices_face_id)
 
 
