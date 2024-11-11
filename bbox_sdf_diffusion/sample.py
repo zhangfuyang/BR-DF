@@ -264,7 +264,7 @@ for i in range(batch_size):
     ##### process #####
     save_root = os.path.join(args.output_dir, f'{i:03d}', 'process')
     os.makedirs(save_root, exist_ok=True)
-    brep_process(solid_voxel_i, face_voxel_i.transpose(1,2,3,0), save_root, fast_sample=True)
+    brep_process(solid_voxel_i, face_voxel_i.transpose(1,2,3,0), save_root, fast_sample=args.fast_sample)
 
 
     
