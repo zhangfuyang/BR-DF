@@ -28,7 +28,7 @@ parser.add_argument('--fast_sample', action='store_true', default=False)
 args = parser.parse_args()
 
 batch_size = 16
-num_bbox = 50
+num_bbox = 30
 bbox_threshold = 0.04
 
 ### 1. load bbox model ###
@@ -123,8 +123,16 @@ ddpm_scheduler = DDPMScheduler(
 with torch.no_grad():
     bbox = torch.randn(batch_size, num_bbox, 6).float().to('cuda')
 
+    pndm_scheduler.set_timesteps(200)
+    for t in tqdm(pndm_scheduler.timesteps[:158]):#
+        timesteps = torch.full((batch_size,), t, device='cuda').long()
+        pred = bbox_net(bbox, timesteps)
+        bbox = pndm_scheduler.step(pred, t, bbox).prev_sample
+            
+    bbox = bbox.repeat(1,2,1) # late increase
+            
     ddpm_scheduler.set_timesteps(1000)
-    for t in tqdm(ddpm_scheduler.timesteps):
+    for t in tqdm(ddpm_scheduler.timesteps[-250:]):
         timesteps = torch.full((batch_size,), t, device='cuda').long()
         pred = bbox_net(bbox, timesteps)
         bbox = ddpm_scheduler.step(pred, t, bbox).prev_sample
