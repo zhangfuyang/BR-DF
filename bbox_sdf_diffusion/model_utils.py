@@ -405,15 +405,23 @@ class AttnProcessor3D_2_0_per_pixel:
         if attn.group_norm is not None:
             hidden_states = attn.group_norm(hidden_states.transpose(1, 2)).transpose(1, 2)
 
-        query = attn.to_q(hidden_states, *args)
+        # check to_q pass params whether need args
+        try:
+            query = attn.to_q(hidden_states, *args)
+        except:
+            query = attn.to_q(hidden_states)
 
         if encoder_hidden_states is None:
             encoder_hidden_states = hidden_states
         elif attn.norm_cross:
             encoder_hidden_states = attn.norm_encoder_hidden_states(encoder_hidden_states)
 
-        key = attn.to_k(encoder_hidden_states, *args)
-        value = attn.to_v(encoder_hidden_states, *args)
+        try:
+            key = attn.to_k(encoder_hidden_states, *args)
+            value = attn.to_v(encoder_hidden_states, *args)
+        except:
+            key = attn.to_k(encoder_hidden_states)
+            value = attn.to_v(encoder_hidden_states)
 
         inner_dim = key.shape[-1]
         head_dim = inner_dim // attn.heads
@@ -449,7 +457,11 @@ class AttnProcessor3D_2_0_per_pixel:
         # bs*nxnxn, 1, ch
 
         # linear proj
-        hidden_states = attn.to_out[0](hidden_states, *args)
+        try:
+            hidden_states = attn.to_out[0](hidden_states, *args)
+        except:
+            hidden_states = attn.to_out[0](hidden_states)
+
         # dropout
         hidden_states = attn.to_out[1](hidden_states) # bs*nxnxn, 1, ch
 

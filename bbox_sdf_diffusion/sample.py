@@ -11,7 +11,8 @@ from diffusion_model import Solid3DModel
 from tqdm import tqdm
 import pickle
 import sys
-from utils import draw_cuboid, brep_process, base_color
+from utils import draw_cuboid, base_color
+from optimize import brep_process
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from vqvae.vae_model import VQVAE3D
@@ -27,7 +28,7 @@ parser.add_argument('--output_dir', type=str, default='bbox_sdf_diffusion/output
 parser.add_argument('--fast_sample', action='store_true', default=False)
 args = parser.parse_args()
 
-batch_size = 16
+batch_size = 8
 num_bbox = 50
 bbox_threshold = 0.04
 
@@ -248,7 +249,7 @@ for i in range(batch_size):
         if pc.vertices.shape[0] == 0:
             continue
         pc.visual.vertex_colors = base_color[face_i % len(base_color)]
-        pc.export(os.path.join(save_root, f'face_{face_i}_only.obj'))
+        #pc.export(os.path.join(save_root, f'face_{face_i}_only.obj'))
 
         all_pc = pc if all_pc is None else all_pc + pc
 
@@ -258,13 +259,13 @@ for i in range(batch_size):
     # save solid_voxel_i and face_voxel_i
     data = {
         'v_sdf': solid_voxel_i,
-        'f_sdf': face_voxel_i.transpose(1,2,3,0)
+        'f_udf': face_voxel_i.transpose(1,2,3,0)
     }
     np.save(os.path.join(save_root, 'data.npy'), data)
     ##### process #####
     save_root = os.path.join(args.output_dir, f'{i:03d}', 'process')
     os.makedirs(save_root, exist_ok=True)
-    brep_process(solid_voxel_i, face_voxel_i.transpose(1,2,3,0), save_root, fast_sample=args.fast_sample)
+    brep_process(solid_voxel_i, face_voxel_i.transpose(1,2,3,0), save_root, save_rot_images=True)
 
 
     
