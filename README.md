@@ -1,5 +1,7 @@
 # B-Rep Distance Functions (BR-DF) <br> How to Represent a B-Rep Model by Volumetric Distance Functions?
 
+# The code has not been fully cleaned, and the current README is not yet readable. The final version will be released by the end of this year.
+
 [![arXiv](https://img.shields.io/badge/📃-arXiv%20-red.svg)](https://arxiv.org)
 [![webpage](https://img.shields.io/badge/🌐-Website%20-blue.svg)](https://zhangfuyang.github.io/brdf/) 
 
