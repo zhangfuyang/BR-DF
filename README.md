@@ -2,7 +2,7 @@
 
 # The code has not been fully cleaned, and the current README is not yet readable. The final version will be released by the end of this year.
 
-[![arXiv](https://img.shields.io/badge/📃-arXiv%20-red.svg)](https://arxiv.org)
+[![arXiv](https://img.shields.io/badge/📃-arXiv%20-red.svg)](https://arxiv.org/abs/2511.14870)
 [![webpage](https://img.shields.io/badge/🌐-Website%20-blue.svg)](https://zhangfuyang.github.io/brdf/) 
 
 ![alt brdf](https://zhangfuyang.github.io/brdf/assets/images/teaser_v3.jpg)
